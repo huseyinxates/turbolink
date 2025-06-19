@@ -115,3 +115,28 @@ void UTurboLinkGrpcManager::Private::ShutdownCompletionQueue()
 	}
 }
 
+void UTurboLinkGrpcManager::Private::StartCompletionThread(UTurboLinkGrpcManager* Manager)
+{
+CompletionRunnable = new FGrpcCompletionQueueThread(Manager);
+CompletionThread = FRunnableThread::Create(CompletionRunnable, TEXT("TurboLinkGrpcCompletionThread"));
+}
+
+void UTurboLinkGrpcManager::Private::StopCompletionThread()
+{
+if (CompletionRunnable)
+{
+CompletionRunnable->Stop();
+}
+if (CompletionThread)
+{
+CompletionThread->WaitForCompletion();
+delete CompletionThread;
+CompletionThread = nullptr;
+}
+if (CompletionRunnable)
+{
+delete CompletionRunnable;
+CompletionRunnable = nullptr;
+}
+}
+

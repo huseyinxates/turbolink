@@ -36,9 +36,10 @@ void UTurboLinkGrpcManager::Initialize(FSubsystemCollectionBase& Collection)
 		UClass* serviceClass = seriviceClasses[i];
 		ServiceClassMap.Add(serviceClass->GetName(), serviceClass);
 	}
-	//Create global completion queue
-	d->CompletionQueue = std::make_unique<grpc::CompletionQueue>();
-	bIsInitialized = true;
+        //Create global completion queue
+        d->CompletionQueue = std::make_unique<grpc::CompletionQueue>();
+        d->StartCompletionThread(this);
+        bIsInitialized = true;
 }
 
 void UTurboLinkGrpcManager::Deinitialize()
@@ -55,9 +56,10 @@ void UTurboLinkGrpcManager::Deinitialize()
 	WorkingService.Empty();
 	ShutingDownService.Empty();
 
-	//Shutdown and drain the completion queue
-	d->ShutdownCompletionQueue();
-	d->CompletionQueue = nullptr;
+        //Shutdown and drain the completion queue
+        d->StopCompletionThread();
+        d->ShutdownCompletionQueue();
+        d->CompletionQueue = nullptr;
 	GrpcContextMap.Empty();
 
 	//clean class map
@@ -83,32 +85,7 @@ void UTurboLinkGrpcManager::Tick(float DeltaTime)
 		}
 	}
 
-	// Loop while listening for completed event.
-	gpr_timespec deadline;
-	deadline.clock_type = GPR_CLOCK_MONOTONIC;
-	deadline.tv_nsec = 1;
-	deadline.tv_sec = 0;
 
-	while (true)
-	{
-		void* event_tag=nullptr;
-		bool ok;
-		auto result = d->CompletionQueue->AsyncNext(&event_tag, &ok, deadline);
-
-		if (result == grpc::CompletionQueue::NextStatus::GOT_EVENT)
-		{
-			TSharedPtr<GrpcContext>* grpcContext = GrpcContextMap.Find(event_tag);
-			if (grpcContext != nullptr)
-			{
-				(*grpcContext)->OnRpcEvent(ok, event_tag);
-			}
-		}
-		else
-		{
-			//time out
-			break;
-		}
-	}
 
 	//get config instance
 	FTurboLinkGrpcModule* turboLinkModule = FModuleManager::GetModulePtr<FTurboLinkGrpcModule>("TurboLinkGrpc");
@@ -221,7 +198,16 @@ void* UTurboLinkGrpcManager::GetNextTag(TSharedPtr<GrpcContext> Context)
 
 void UTurboLinkGrpcManager::RemoveTag(void* Tag)
 {
-	GrpcContextMap.Remove(Tag);
+        GrpcContextMap.Remove(Tag);
+}
+
+void UTurboLinkGrpcManager::HandleRpcEvent(void* EventTag, bool Ok)
+{
+TSharedPtr<GrpcContext>* grpcContext = GrpcContextMap.Find(EventTag);
+if (grpcContext != nullptr)
+{
+(*grpcContext)->OnRpcEvent(Ok, EventTag);
+}
 }
 
 FGrpcContextHandle UTurboLinkGrpcManager::GetNextContextHandle()

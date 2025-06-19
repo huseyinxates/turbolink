@@ -28,7 +28,8 @@ public:
 	void* GetNextTag(TSharedPtr<GrpcContext> Context);
 	void RemoveTag(void* Tag);
 
-	FGrpcContextHandle GetNextContextHandle();
+FGrpcContextHandle GetNextContextHandle();
+void HandleRpcEvent(void* EventTag, bool Ok);
 public:
 	class Private;
 	Private* const d=nullptr;
