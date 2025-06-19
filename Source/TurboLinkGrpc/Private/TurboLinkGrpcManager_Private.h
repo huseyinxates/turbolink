@@ -5,6 +5,8 @@
 
 #include <grpcpp/grpcpp.h>
 #include <set>
+#include "HAL/RunnableThread.h"
+#include "GrpcCompletionQueueThread.h"
 
 class UTurboLinkGrpcManager::Private
 {
@@ -32,11 +34,18 @@ public:
 	std::shared_ptr<ServiceChannel> CreateServiceChannel(const char* EndPoint, UGrpcService* AttachedService);
 	void RemoveServiceChannel(std::shared_ptr<ServiceChannel> Channel, UGrpcService* AttachedService);
 
-	static std::unique_ptr<grpc::ClientContext> CreateRpcClientContext();
+        static std::unique_ptr<grpc::ClientContext> CreateRpcClientContext();
 
-	void ShutdownCompletionQueue();
+        void ShutdownCompletionQueue();
+
+        void StartCompletionThread(UTurboLinkGrpcManager* Manager);
+        void StopCompletionThread();
+
+private:
+        FGrpcCompletionQueueThread* CompletionRunnable = nullptr;
+        FRunnableThread* CompletionThread = nullptr;
 
 public:
-	std::map<std::string, std::shared_ptr<ServiceChannel>> ChannelMap;
-	std::unique_ptr<grpc::CompletionQueue> CompletionQueue;
+        std::map<std::string, std::shared_ptr<ServiceChannel>> ChannelMap;
+        std::unique_ptr<grpc::CompletionQueue> CompletionQueue;
 };
